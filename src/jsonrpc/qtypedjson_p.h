@@ -1,5 +1,6 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+// Qt-Security score:significant
 
 #ifndef QTYPEDJSON_H
 #define QTYPEDJSON_H
@@ -36,7 +37,7 @@
 QT_BEGIN_NAMESPACE
 
 namespace QTypedJson {
-Q_JSONRPC_EXPORT Q_DECLARE_LOGGING_CATEGORY(jsonRpcLog);
+QT_DECLARE_EXPORTED_QT_LOGGING_CATEGORY(jsonRpcLog, Q_JSONRPC_EXPORT);
 
 Q_NAMESPACE
 
@@ -127,7 +128,18 @@ struct IsList<T, void_t<typename T::value_type>> : std::true_type
 {
 };
 
-template<typename T>
+template <typename T, typename = void>
+struct IsQMap : std::false_type
+{
+};
+
+template <typename T>
+struct IsQMap<T, void_t<typename T::key_type, typename T::mapped_type>>
+    : std::is_same<QMap<QByteArray, typename T::mapped_type>, T>
+{
+};
+
+template <typename T>
 struct IsPointer : std::is_pointer<T>
 {
 };
@@ -249,6 +261,10 @@ public:
     template<typename T>
     bool startArray(qint32 &size, T &el)
     {
+        if (!currentValue().isArray()) {
+            warn(QStringLiteral(u"Error: expected an array at %1.").arg(currentPath()));
+            return false;
+        }
         startArrayF(size);
         using BaseT = std::decay_t<T>;
         if constexpr (std::is_base_of_v<QList<typename BaseT::value_type>, BaseT>) {
@@ -257,6 +273,27 @@ public:
             assert(false); // currently unsupported
         }
         return true;
+    }
+
+    template <typename T>
+    bool startMap(T &el)
+    {
+        if (!currentValue().isObject()) {
+            warn(QStringLiteral(u"Error: expected an object at %1.").arg(currentPath()));
+            return false;
+        }
+        for (auto [key, _] : currentValue().toObject().asKeyValueRange())
+            el[key.toString().toUtf8()];
+
+        const char *type = typeName<T>();
+        return this->startObjectF(type, { }, { });
+    }
+
+    template <typename T>
+    void endMap(T &)
+    {
+        const char *type = typeName<T>();
+        return this->endObjectF(type, { }, { });
     }
 
     template<typename T>
@@ -332,7 +369,9 @@ public:
     //  serialization callbacks
     void handleBasic(bool &);
     void handleBasic(QByteArray &);
+    void handleConstString(QByteArrayView);
     void handleBasic(int &);
+    void handleBasic(unsigned &);
     void handleBasic(double &);
     void handleNullType();
     void handleJson(QJsonValue &v);
@@ -369,8 +408,18 @@ struct HasWalk : std::false_type
 {
 };
 
-template<typename T>
-struct HasWalk<T, void_t<decltype(T {}.walk(std::declval<Reader>))>> : std::true_type
+template <typename T>
+struct HasWalk<T, void_t<decltype(T{ }.walk(std::declval<Reader &>()))>> : std::true_type
+{
+};
+
+template <typename T, typename = void>
+struct HasCustomWalk : std::false_type
+{
+};
+
+template <typename T>
+struct HasCustomWalk<T, void_t<decltype(T{ }.customWalk(std::declval<Reader>))>> : std::true_type
 {
 };
 
@@ -383,15 +432,29 @@ void field(W &w, const C &fieldName, T &el)
     }
 }
 
+template <typename W, typename T>
+inline void doWalk(W &w, const T &el)
+{
+    using BaseT = std::decay_t<T>;
+    if constexpr (std::is_same_v<BaseT, QByteArrayView>) {
+        w.handleConstString(el);
+    } else {
+        qFatal() << "Unhandled type" << typeid(T).name();
+    }
+}
+
 template<typename W, typename T>
 inline void doWalk(W &w, T &el)
 {
     using BaseT = std::decay_t<T>;
-    if constexpr (
-            std::is_same_v<
-                    BaseT,
-                    int> || std::is_same_v<BaseT, double> || std::is_same_v<BaseT, bool> || std::is_same_v<BaseT, QByteArray>) {
+    if constexpr (HasCustomWalk<BaseT>::value) {
+        return el.customWalk(w);
+    } else if constexpr (std::is_same_v<BaseT, int> || std::is_same_v<BaseT, unsigned int>
+                  || std::is_same_v<BaseT, double> || std::is_same_v<BaseT, bool>
+                  || std::is_same_v<BaseT, QByteArray>) {
         w.handleBasic(el);
+    } else if constexpr (std::is_same_v<BaseT, QByteArrayView>) {
+        w.handleConstString(el);
     } else if constexpr (HasWalk<BaseT>::value) {
         const char *type = typeName<BaseT>();
         ObjectOptions options = JsonObjectOptions<BaseT>::value;
@@ -400,10 +463,8 @@ inline void doWalk(W &w, T &el)
             el.walk(w);
             w.endObject(type, options, id, el);
         }
-    } else if constexpr (
-            std::is_same_v<
-                    BaseT,
-                    QJsonValue> || std::is_same_v<BaseT, QJsonObject> || std::is_same_v<BaseT, QJsonArray>) {
+    } else if constexpr (std::is_same_v<BaseT, QJsonValue> || std::is_same_v<BaseT, QJsonObject>
+                         || std::is_same_v<BaseT, QJsonArray>) {
         w.handleJson(el);
     } else if constexpr (std::is_enum_v<BaseT>) {
         w.handleEnum(el);
@@ -414,12 +475,26 @@ inline void doWalk(W &w, T &el)
             doWalk(w, *el);
     } else if constexpr (IsVariant<BaseT>::value) {
         w.handleVariant(el);
+    } else if constexpr (IsQMap<BaseT>::value) {
+        if (!w.startMap(el))
+            return;
+        for (auto [key, subEl] : el.asKeyValueRange()) {
+            if (!w.startField(key.data()))
+                break;
+            doWalk(w, subEl);
+            w.endField(key.data());
+        }
+        w.endMap(el);
     } else if constexpr (IsList<BaseT>::value) {
         if constexpr (std::is_same_v<std::optional<typename BaseT::value_type>, BaseT>) {
             if (w.handleOptional(el) && el)
                 doWalk(w, *el);
         } else {
+            // broken gcc warns about optional being uninitialized, QTBUG-128574
+            QT_WARNING_PUSH
+            QT_WARNING_DISABLE_GCC("-Wmaybe-uninitialized")
             int size = el.size();
+            QT_WARNING_POP
             if (!w.startArray(size, el))
                 return;
             int i = 0;
@@ -507,6 +582,20 @@ public:
         this->endArrayF(size);
     }
 
+    template <typename T>
+    bool startMap(T &)
+    {
+        const char *type = typeName<T>();
+        return startObjectF(type, { }, { });
+    }
+
+    template <typename T>
+    void endMap(T &)
+    {
+        const char *type = typeName<T>();
+        endObjectF(type, { }, { });
+    }
+
     template<typename T>
     void handleVariant(T &el)
     {
@@ -522,13 +611,15 @@ public:
         if (ok)
             this->handleBasic(value);
         else
-            this->handleBasic(eVal.toUtf8());
+            this->handleConstString(eVal.toUtf8());
     }
 
     // serialization callbacks
     void handleBasic(const bool &v);
+    void handleConstString(QByteArrayView v);
     void handleBasic(const QByteArray &v);
     void handleBasic(const int &v);
+    void handleBasic(const unsigned int &v);
     void handleBasic(const double &v);
     void handleNullType();
     void handleJson(QJsonValue &v);

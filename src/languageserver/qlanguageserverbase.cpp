@@ -1,5 +1,6 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+// Qt-Security score:significant
 
 #include "qlanguageserverbase_p_p.h"
 
@@ -7,9 +8,9 @@ QT_BEGIN_NAMESPACE
 
 using namespace Qt::StringLiterals;
 
-namespace QLspSpecification {
-
 Q_LOGGING_CATEGORY(lspLog, "qt.languageserver.protocol");
+
+namespace QLspSpecification {
 
 ProtocolBase::ProtocolBase(std::unique_ptr<ProtocolBasePrivate> &&priv) : d_ptr(std::move(priv))
 {
@@ -26,9 +27,7 @@ void ProtocolBase::registerMethods(QJsonRpc::TypedRpc *typedRpc)
             QByteArray(),
             [this, typedRpc](const QJsonRpcProtocol::Request &req,
                              const QJsonRpcProtocol::ResponseHandler &handler) {
-                QJsonRpc::IdType id =
-                        ((req.id.isDouble()) ? QJsonRpc::IdType(req.id.toInt())
-                                             : QJsonRpc::IdType(req.id.toString().toUtf8()));
+                QJsonRpc::IdType id(req.id);
                 QByteArray method = req.method.toUtf8();
                 QJsonRpc::TypedResponse response(id, typedRpc, handler);
                 handleUndispatchedRequest(id, method, req.params, std::move(response));
@@ -76,10 +75,11 @@ void ProtocolBase::defaultUndispatchedNotificationHandler(
         msg.append("Unknown notification with method ");
         msg.append(method);
     } else {
-        msg.append("There was not handler registered with register");
+        msg.append("There was no handler registered with register");
         msg.append(cppBaseName);
-        msg.append("NotificationHandler to handle notification with method ");
+        msg.append("NotificationHandler to handle the \"");
         msg.append(method);
+        msg.append("\" notification");
     }
     if (method.startsWith("$"))
         qCDebug(lspLog) << QString::fromUtf8(msg);

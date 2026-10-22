@@ -1,5 +1,6 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+// Qt-Security score:significant
 
 #include "qtypedjson_p.h"
 #include <QtCore/QLoggingCategory>
@@ -21,7 +22,7 @@ Reader::Reader(const QJsonValue &v)
 
 Reader::~Reader()
 {
-    for (const QString &msg : m_p->errorMessages)
+    for (const QString &msg : std::as_const(m_p->errorMessages))
         qCWarning(jsonRpcLog) << msg;
     delete m_p;
 }
@@ -52,12 +53,34 @@ void Reader::handleBasic(QByteArray &el)
         warnMissing(u"string");
 }
 
+void Reader::handleConstString(QByteArrayView el)
+{
+    if (!currentValue().isString() || el != currentValue().toString().toUtf8())
+        warnMissing(u"string");
+}
+
 void Reader::handleBasic(int &el)
 {
     if (currentValue().isDouble())
         el = currentValue().toInt(el);
     else
         warnMissing(u"int");
+}
+
+void Reader::handleBasic(unsigned int &el)
+{
+    if (currentValue().isDouble()) {
+        double currentInt = currentValue().toDouble(el);
+        if (currentInt < 0 || currentInt > std::numeric_limits<uint>::max()) {
+            warn(QStringLiteral("Value %1 does not fit the unsigned int range of [0, %2].")
+                         .arg(QString::number(currentInt),
+                              QString::number(std::numeric_limits<uint>::max())));
+            return;
+        }
+        el = static_cast<unsigned int>(currentInt);
+    } else {
+        warnMissing(u"unsigned int");
+    }
 }
 
 void Reader::handleBasic(double &el)
@@ -245,12 +268,23 @@ void JsonBuilder::handleBasic(const bool &v)
 
 void JsonBuilder::handleBasic(const QByteArray &v)
 {
+    handleConstString(v);
+}
+
+void JsonBuilder::handleConstString(QByteArrayView v)
+{
     m_values.append(QJsonValue(QString::fromUtf8(v)));
 }
 
 void JsonBuilder::handleBasic(const int &v)
 {
     m_values.append(QJsonValue(v));
+}
+
+void JsonBuilder::handleBasic(const unsigned int &v)
+{
+    // note: there is no unsigned representation in QJsonValue.
+    handleBasic(static_cast<double>(v));
 }
 
 void JsonBuilder::handleBasic(const double &v)

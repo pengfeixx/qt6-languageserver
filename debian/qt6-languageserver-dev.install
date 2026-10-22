@@ -16,6 +16,7 @@ usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6JsonRpcPrivate/Qt6JsonRpcPrivateConfigVer
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6JsonRpcPrivate/Qt6JsonRpcPrivateDependencies.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6JsonRpcPrivate/Qt6JsonRpcPrivateTargets-none.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6JsonRpcPrivate/Qt6JsonRpcPrivateTargets.cmake
+usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6JsonRpcPrivate/Qt6JsonRpcPrivateTargetsPrecheck.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6JsonRpcPrivate/Qt6JsonRpcPrivateVersionlessAliasTargets.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6JsonRpcPrivate/Qt6JsonRpcPrivateVersionlessTargets.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6LanguageServerPrivate/Qt6LanguageServerPrivateAdditionalTargetInfo.cmake
@@ -25,13 +26,15 @@ usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6LanguageServerPrivate/Qt6LanguageServerPr
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6LanguageServerPrivate/Qt6LanguageServerPrivateDependencies.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6LanguageServerPrivate/Qt6LanguageServerPrivateTargets-none.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6LanguageServerPrivate/Qt6LanguageServerPrivateTargets.cmake
+usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6LanguageServerPrivate/Qt6LanguageServerPrivateTargetsPrecheck.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6LanguageServerPrivate/Qt6LanguageServerPrivateVersionlessAliasTargets.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6LanguageServerPrivate/Qt6LanguageServerPrivateVersionlessTargets.cmake
 usr/lib/${DEB_HOST_MULTIARCH}/libQt6JsonRpc.a
 usr/lib/${DEB_HOST_MULTIARCH}/libQt6JsonRpc.prl
 usr/lib/${DEB_HOST_MULTIARCH}/libQt6LanguageServer.a
 usr/lib/${DEB_HOST_MULTIARCH}/libQt6LanguageServer.prl
-usr/lib/${DEB_HOST_MULTIARCH}/qt6/metatypes/qt6jsonrpcprivate_none_metatypes.json
-usr/lib/${DEB_HOST_MULTIARCH}/qt6/metatypes/qt6languageserverprivate_none_metatypes.json
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/metatypes/qt6jsonrpcprivate_metatypes.json
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/metatypes/qt6languageserverprivate_metatypes.json
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/modules/JsonRpcPrivate.json
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/modules/LanguageServerPrivate.json
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/sbom/qtlanguageserver-6.*.spdx

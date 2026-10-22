@@ -1,5 +1,6 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+// Qt-Security score:significant
 
 #include "qjsonrpcprotocol_p_p.h"
 
@@ -99,6 +100,7 @@ private:
     QJsonArray m_finished;
     QJsonRpcTransport *m_transport = nullptr;
     uint m_pending = 0;
+    bool m_dispatchDone = false;
 };
 
 QJsonRpcProtocol::QJsonRpcProtocol() : d(std::make_unique<QJsonRpcProtocolPrivate>()) { }
@@ -150,6 +152,7 @@ void QJsonRpcProtocol::sendRequest(const Request &request,
             d->sendMessage(createRequest(request));
             return;
         }
+        break;
     default:
         break;
     }
@@ -310,25 +313,13 @@ void RequestBatchHandler::processMessages(QJsonRpcProtocolPrivate *protocol,
         const QJsonValue id = request.id;
         handler->handleRequest(request, [this, id](const QJsonRpcProtocol::Response &response) {
             m_finished.append(createResponse(id, response));
-            bool found = false;
-            for (QJsonValueRef entry : m_finished) {
-                if (entry.toObject()[u"id"] == id) {
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                m_finished.append(createResponse(
-                        id,
-                        { id, QJsonValue::Undefined,
-                          QJsonValue(static_cast<int>(QJsonRpcProtocol::ErrorCode::InternalError)),
-                          u"Message handler did not produce a result."_s }));
-            }
 
-            if (--m_pending == 0)
+            // messages in the batch has finished, so it's safe to delete on the last completion.
+            if (--m_pending == 0 && m_dispatchDone)
                 delete this;
         });
     }
+    m_dispatchDone = true;
     if (m_pending == 0)
         delete this;
 }
@@ -394,7 +385,8 @@ void QJsonRpcProtocolPrivate::processMessage(const QJsonDocument &message,
         && m_messagePreprocessor(message, error,
                                  [message, this](const QJsonRpcProtocol::Response &r) {
                                      Q_ASSERT(message.object().contains(u"id"));
-                                     this->sendMessage(createResponse(message.object()[u"id"], r));
+                                     this->sendMessage(
+                                             createResponse(message.object().value(u"id"), r));
                                  })
                 != QJsonRpcProtocol::Processing::Continue) {
         return;

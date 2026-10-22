@@ -1,5 +1,6 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+// Qt-Security score:significant
 
 #ifndef QLANGUAGESERVERBASE_P_H
 #define QLANGUAGESERVERBASE_P_H
@@ -27,9 +28,25 @@
 
 QT_BEGIN_NAMESPACE
 
+Q_DECLARE_LOGGING_CATEGORY(lspLog);
+
 namespace QLspSpecification {
 
-Q_DECLARE_LOGGING_CATEGORY(lspLog);
+class Q_LANGUAGESERVER_EXPORT ResponseError
+{
+public:
+    int code = { };
+    QByteArray message = { };
+    std::optional<QJsonValue> data = { };
+
+    template <typename W>
+    void walk(W &w)
+    {
+        field(w, "code", code);
+        field(w, "message", message);
+        field(w, "data", data);
+    }
+};
 
 class ProtocolBasePrivate;
 class Q_LANGUAGESERVER_EXPORT ProtocolBase

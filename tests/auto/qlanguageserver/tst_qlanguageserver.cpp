@@ -56,7 +56,7 @@ public:
             return QJsonRpcProtocol::Processing::Stop;
         });
 
-        QObject::connect(device, &QIODevice::readyRead,
+        QObject::connect(device, &QIODevice::readyRead, m_device,
                          [this, protocol]() { protocol->receiveData(m_device->readAll()); });
     }
 
@@ -258,7 +258,7 @@ void tst_QLanguageServer::jsonRpcTransport()
 
         QByteArray received;
         QIODevice *end1 = pipe.end1();
-        connect(end1, &QIODevice::readyRead, [&]() {
+        connect(end1, &QIODevice::readyRead, end1, [&]() {
             received.append(end1->read(end1->bytesAvailable()));
         });
 
@@ -311,7 +311,7 @@ void tst_QLanguageServer::jsonRpcTransportHeaderCase()
 
         QByteArray received;
         QIODevice *end1 = pipe.end1();
-        connect(end1, &QIODevice::readyRead,
+        connect(end1, &QIODevice::readyRead, end1,
                 [&]() { received.append(end1->read(end1->bytesAvailable())); });
 
         QLanguageServerJsonRpcTransport protocol;
@@ -588,11 +588,12 @@ void tst_QLanguageServer::windowShowMessageRequest()
     params.actions = actions;
 
     test.protocol.requestShowMessageRequest(
-                params,
-                [&](const std::variant<QLspSpecification::MessageActionItem, std::nullptr_t> &r) {
-        QCOMPARE(r.index(), std::size_t(0));
-        QCOMPARE(std::get<QLspSpecification::MessageActionItem>(r).title, "aaa");
-    });
+            params,
+            [&](const std::variant<std::nullptr_t, QLspSpecification::MessageActionItem> &_r) {
+                auto r = std::get_if<QLspSpecification::MessageActionItem>(&_r);
+                QVERIFY(r);
+                QCOMPARE(r->title, "aaa");
+            });
 
     QTRY_VERIFY(messageReceived);
 }

@@ -4,6 +4,7 @@
 #define TST_TYPEDJSON_H
 
 #include <QtJsonRpc/private/qtypedjson_p.h>
+#include <QtJsonRpc/private/qjsontypedrpc_p.h>
 #include <QtTest/QtTest>
 #include <QCborValue>
 #include <QDebug>
@@ -17,8 +18,8 @@ namespace TestSpec {
 class Position
 {
 public:
-    int line = {};
-    int character = {};
+    unsigned int line = { };
+    unsigned int character = { };
 
     template<typename W>
     void walk(W &w)
@@ -314,6 +315,151 @@ private slots:
         QTypedJson::Reader r2(jsonDocument.object());
         QTypedJson::doWalk(r2, hasListOfTextDocuments);
         QCOMPARE(toJsonValue(hasListOfVariant), toJsonValue(hasListOfTextDocuments));
+    }
+
+    void testMap()
+    {
+        const QMap<QByteArray, bool> a{ { "a", true }, { "b", false }, { "c", true } };
+        const QMap<QByteArray, QMap<QByteArray, std::variant<QByteArray, int>>> b{
+            { "firstMap", { { "nestedKey", "nestedValue" }, { "nestedKey2", 42 } } },
+            { "secondMap",
+              { { "nestedKeyFromSecondMap", "nestedValueFromSecondMap" },
+                { "nestedKey2FromSecondMap", 12345 } } },
+        };
+        const QMap<QByteArray, QList<QMap<QByteArray, QList<int>>>> c{
+            {
+                    "firstMap",
+                    { { { "nestedMap", { 1 } } }, { }, { } },
+            },
+            {
+                    "secondMap",
+                    {
+                            { { "nestedMap", { 1, 2, 3 } } },
+                            { },
+                            { { "nestedMap2", { 3, 4, 5 } } },
+                    },
+            },
+        };
+
+        const auto runTest = [](auto &&arg) {
+            const QJsonValue json = toJsonValue(arg);
+            std::decay_t<decltype(arg)> populatedFromJson;
+            QTypedJson::Reader r(json);
+            QTypedJson::doWalk(r, populatedFromJson);
+
+            QCOMPARE(arg, populatedFromJson);
+            QCOMPARE(json, toJsonValue(populatedFromJson));
+        };
+        runTest(a);
+        runTest(b);
+        runTest(c);
+    }
+
+    void testBadArray()
+    {
+        const QMap<QByteArray, int> unexpected{
+            { "a", 1 },
+            { "b", 2 },
+            { "c", 3 },
+        };
+        const QJsonValue unexpectedJson = toJsonValue(unexpected);
+
+        QTypedJson::Reader r(unexpectedJson);
+        QList<int> result;
+        QTypedJson::doWalk(r, result);
+        QCOMPARE(r.errorMessages(), { "Error: expected an array at ."_L1 });
+    }
+
+    void unsignedAndSigned()
+    {
+        std::variant<unsigned int, int> variant = -3;
+
+        QTypedJson::JsonBuilder b;
+        QTypedJson::doWalk(b, variant);
+        const QJsonValue json = b.popLastValue();
+        QCOMPARE(json, QJsonValue(-3));
+
+        variant = 42u;
+        QCOMPARE(variant.index(), 0);
+        QTypedJson::Reader r(json);
+        QTypedJson::doWalk(r, variant);
+        QCOMPARE(variant.index(), 1);
+        QCOMPARE(std::get<1>(variant), -3);
+    }
+
+private:
+    struct StructContainingMembersWithCustomDoWalk
+    {
+        template <typename W>
+        void walk(W &w)
+        {
+            field(w, "number", number);
+            field(w, "string", string);
+        }
+        QJsonRpc::IdType number{ 42 };
+        QJsonRpc::IdType string{ "Hello World" };
+    };
+private slots:
+    void customDoWalk()
+    {
+        StructContainingMembersWithCustomDoWalk testMe;
+
+        QTypedJson::JsonBuilder builder;
+        doWalk(builder, testMe.number);
+        QVERIFY(builder.popLastValue().isDouble());
+        QVERIFY(builder.popLastValue().isUndefined()); // should not contain left-overs
+
+        QTypedJson::Reader reader(toJsonValue(testMe));
+        QTypedJson::Reader numberReader(toJsonValue(testMe.number));
+        QTypedJson::Reader stringReader(toJsonValue(testMe.string));
+
+        QJsonRpc::IdType result;
+        QTypedJson::doWalk(numberReader, result);
+        QCOMPARE(result.toString(), "42"_L1);
+        QTypedJson::doWalk(stringReader, result);
+        QCOMPARE(result.toString(), "Hello World"_L1);
+
+        testMe.string = QJsonRpc::IdType{ "asdf" };
+        testMe.number = QJsonRpc::IdType{ 123456 };
+        QTypedJson::doWalk(reader, testMe);
+
+        QTypedJson::doWalk(stringReader, result);
+        QCOMPARE(testMe.number.toString(), "42"_L1);
+        QCOMPARE(testMe.string.toString(), "Hello World"_L1);
+    }
+
+    void badUnsigned()
+    {
+        for (double d : { std::numeric_limits<uint>::max() + 2.0, -1.0 }) {
+            QTypedJson::Reader r(toJsonValue(d));
+            unsigned result = 123456;
+            QTypedJson::doWalk(r, result);
+            QCOMPARE(r.errorMessages(),
+                     { "Value %1 does not fit the unsigned int range of [0, 4294967295]."_L1.arg(
+                             QString::number(d)) });
+            QCOMPARE(result, 123456); // should not contain garbage
+        }
+    }
+
+    void hasWalk()
+    {
+        struct WalkMe
+        {
+            void walk(QTypedJson::Reader &r)
+            {
+                field(r, "number"_L1, number);
+                field(r, "text"_L1, text);
+            }
+            void walk(QTypedJson::JsonBuilder &b)
+            {
+                field(b, "number"_L1, number);
+                field(b, "text"_L1, text);
+            }
+            int number;
+            QByteArray text;
+        };
+
+        QVERIFY(HasWalk<WalkMe>::value);
     }
 };
 

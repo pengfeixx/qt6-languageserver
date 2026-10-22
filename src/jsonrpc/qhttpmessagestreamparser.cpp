@@ -1,5 +1,6 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+// Qt-Security score:critical reason:data-parser
 
 #include "qhttpmessagestreamparser_p.h"
 
@@ -71,8 +72,8 @@ void QHttpMessageStreamParser::receiveData(QByteArray data)
                 errorMessage(QtWarningMsg,
                              u"Unexpected space at start of headers, skipping"_s.arg(
                                      QString::fromUtf8(m_currentHeaderField)));
-                while (dataPos < data.size()) {
-                    char c = data.at(++dataPos);
+                while (++dataPos < data.size()) {
+                    char c = data.at(dataPos);
                     if (c != space && c != tab) {
                         advance();
                         m_state = State::InHeaderField;

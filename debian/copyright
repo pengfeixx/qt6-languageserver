@@ -6,8 +6,7 @@ Files: *
 Copyright: 2022 The Qt Company Ltd.
 License: LGPL-3 or GPL-2
 
-Files: conanfile.py
-       tests/auto/cmake/test_qtjsonrpc_module/main.cpp
+Files: tests/auto/cmake/test_qtjsonrpc_module/main.cpp
        tests/auto/qjsonrpcprotocol/tst_qjsonrpcprotocol.cpp
        tests/auto/qlanguageserver/tst_qlanguageserver.cpp
 Copyright: 2019, 2021-2022 The Qt Company Ltd.

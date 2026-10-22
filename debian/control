@@ -1,20 +1,19 @@
 Source: qt6-languageserver
 Section: libs
-Priority: optional
 Maintainer: Debian Qt/KDE Maintainers <debian-qt-kde@lists.debian.org>
-Uploaders: Patrick Franz <deltaone@debian.org>, Pino Toscano <pino@debian.org>,
-Build-Depends: cmake (>= 3.18~),
-               debhelper-compat (= 13),
+Uploaders: Patrick Franz <deltaone@debian.org>,
+           Pino Toscano <pino@debian.org>,
+Build-Depends: debhelper-compat (= 13),
+               cmake (>= 3.18~),
                ninja-build,
-               pkg-config,
                pkg-kde-tools,
-               qt6-base-dev (>= 6.8.0+dfsg~),
-               qt6-base-private-dev (>= 6.8.0+dfsg~),
-Standards-Version: 4.6.2
+               pkgconf,
+               qt6-base-dev (>= 6.11.2+dfsg~),
+               qt6-base-private-dev (>= 6.11.2+dfsg~),
+Standards-Version: 4.7.4
 Homepage: https://www.qt.io/developers/
 Vcs-Git: https://salsa.debian.org/qt-kde-team/qt6/qt6-languageserver.git
 Vcs-Browser: https://salsa.debian.org/qt-kde-team/qt6/qt6-languageserver
-Rules-Requires-Root: no
 
 Package: qt6-languageserver-dev
 Section: libdevel
@@ -33,7 +32,8 @@ Package: qt6-languageserver-private-dev
 Architecture: any
 Multi-Arch: same
 Section: libdevel
-Depends: qt6-languageserver-dev (= ${binary:Version}), ${misc:Depends},
+Depends: qt6-languageserver-dev (= ${binary:Version}),
+         ${misc:Depends},
 Description: Qt 6 Language Server private development files
  Qt is a cross-platform C++ application framework. Qt's primary feature
  is its rich set of widgets that provide standard GUI functionality.

@@ -1,5 +1,6 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+// Qt-Security score:significant
 #ifndef QLANGUAGESERVERPRESPECTYPES_P_H
 #define QLANGUAGESERVERPRESPECTYPES_P_H
 
@@ -18,6 +19,8 @@
 #include <QtJsonRpc/private/qjsontypedrpc_p.h>
 #include <QtLanguageServer/qtlanguageserverglobal.h>
 #include <QtCore/QByteArray>
+#include <QtCore/QList>
+#include <QtCore/QMap>
 #include <QtCore/QMetaEnum>
 #include <QtCore/QString>
 
@@ -88,5 +91,6 @@ public:
 };
 
 } // namespace QLspSpecification
+
 QT_END_NAMESPACE
 #endif // QLANGUAGESERVERPRESPECTYPES_P_H

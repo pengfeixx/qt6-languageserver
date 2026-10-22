@@ -1,5 +1,6 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+// Qt-Security score:significant
 #include "qjsontypedrpc_p.h"
 #include <QtCore/QtGlobal>
 
@@ -14,7 +15,7 @@ void TypedResponse::addOnCloseAction(const OnCloseAction &act)
         break;
     case Status::Invalid:
         qCWarning(QTypedJson::jsonRpcLog)
-                << "addOnCloseAction called on moved QJsonTypedResponse" << idToString(m_id);
+                << "addOnCloseAction called on moved QJsonTypedResponse" << m_id.toString();
         Q_ASSERT(false);
         Q_FALLTHROUGH();
     case Status::SentSuccess:
@@ -27,9 +28,8 @@ void TypedResponse::addOnCloseAction(const OnCloseAction &act)
 void TypedResponse::doOnCloseActions()
 {
     m_typedRpc->doOnCloseAction(m_status, m_id);
-    for (const auto &a : m_onCloseActions) {
+    for (const auto &a : std::as_const(m_onCloseActions))
         a(m_status, m_id, *m_typedRpc);
-    }
     m_onCloseActions.clear();
 }
 
